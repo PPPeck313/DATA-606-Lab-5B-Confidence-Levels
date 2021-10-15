@@ -172,7 +172,7 @@ intervals50_1000 <- us_adults %>%
 ```{r}
 analyzeConfidenceIntervalAgainstTrue <- function(intervals, true) {
   accuracyProportions <- intervals %>%
-    apply(1, function(x) true[2,3] > x[1] & true[2,3] < x[2]) %>%
+    apply(1, function(x) true[[2,3]] > x[1] & true[[2,3]] < x[2]) %>%
     as_tibble %>%
     count(value) %>%
     mutate(p = n / sum(n)) %>%
@@ -218,12 +218,12 @@ plotConfidenceIntervals <- function(sample, size = NULL, level, true) {
     analyzeConfidenceIntervalAgainstTrue(true)
   
   accuracies <- intervals %>%
-      apply(1, function(x) true[2,3] > x[1] & true[2,3] < x[2])
+      apply(1, function(x) true[[2,3]] > x[1] & true[[2,3]] < x[2])
   
   ggplot(intervals, aes(lower_ci, upper_ci, colour = accuracies)) + 
     geom_point()
   
-  plot_ci(intervals$lower_ci, intervals$upper_ci, as.numeric(true[2,3]))
+  plot_ci(intervals$lower_ci, intervals$upper_ci, as.numeric(true[[2,3]]))
   
   return(accuracy)
 }
