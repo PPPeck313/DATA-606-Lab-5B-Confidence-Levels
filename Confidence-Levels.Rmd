@@ -2,7 +2,7 @@
 title: "DATA 606 - Lab 5B - Confidence Levels"
 author: "Preston Peck"
 date: "`r Sys.Date()`"
-output: pdf_document
+output: openintro::lab_report
 ---
 
 # Confidence Levels
