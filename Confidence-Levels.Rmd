@@ -1,0 +1,315 @@
+---
+title: "DATA 606 - Lab 5B - Confidence Levels"
+author: "Preston Peck"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+# Confidence Levels
+
+<https://htmlpreview.github.io/?https://github.com/jbryer/DATA606/blob/master/inst/labs/Lab5b/Lab5b_confidence_intervals.html>
+
+```{r message=FALSE}
+library(tidyverse)
+library(openintro)
+library(infer)
+library(psych)
+library(qdapTools)
+library(oilabs)
+```
+
+```{r}
+set.seed(37)
+
+nLabel <- "n"
+yesLabel <- "Yes"
+noLabel <- "No"
+typeLabels <- c(noLabel, yesLabel)
+  
+us_adults <- tibble(
+  climate_change_affects = c(rep(yesLabel, 62000), rep(noLabel, 38000))
+)
+```
+
+### Exercise 1
+```{r}
+sizeSample <- function(sample, size = NULL) {
+  sizedSample <- if(is.null(size)) {
+    sample
+  } else {
+    sample %>%
+      sample_n(size)
+  }
+  
+  return(sizedSample)
+}
+```
+
+```{r}
+analyzeSamplingProportion <- function(sample, size = NULL) {
+  sizedSample <- sizeSample(sample, size)
+  
+  sizedSampleTable <- sizedSample %>%
+    mtabulate %>%
+    t %>%
+    as_tibble
+
+  colnames(sizedSampleTable) <- c(nLabel)
+  
+  sizedSampleTable <- sizedSampleTable %>%
+    mutate(p = n / sum(n)) %>%
+    mutate(climate_change_affects = typeLabels) %>%
+    select(climate_change_affects, n, p)
+    
+  print(sizedSampleTable)
+  
+  print(ggplot(sizedSample, aes(x = climate_change_affects)) +
+    geom_bar() +
+    labs(
+      x = "",
+      y = "",
+      title = "Do you think climate change is affecting your local community?"
+    ) +
+    coord_flip())
+  
+  return(sizedSampleTable)
+}
+```
+
+```{r}
+numOfElements = 60
+
+
+
+us_adultsProportions <- us_adults %>%
+  analyzeSamplingProportion
+
+samp <- us_adults %>%
+  sizeSample(numOfElements)
+
+sampProportions <- samp %>%
+  analyzeSamplingProportion
+```
+
+### Exercise 2
+With such a small sample size, the proportions will be very prone to changing since small variations can result in big changes, so I can't say for sure that other students will have the same results, but we will probably have similar results.
+
+### Exercise 3
+95% confidence means that 95% of the time across all samplings, the average proportion of the element in question will fall somewhere within the confidence interval
+```{r}
+analyzeConfidenceInterval <- function(sample, size = NULL, reps = 1000, yes = TRUE, level = 0.95, print = TRUE) {
+  sizedSample <- sizeSample(sample, size)
+  
+  typeLabel <- if (yes) { 
+      yesLabel
+    } else {
+      noLabel
+    }
+  
+  interval <- sizedSample %>%
+    specify(response = climate_change_affects, success = typeLabel) %>%
+    generate(reps = reps, type = "bootstrap") %>%
+    calculate(stat = "prop") %>%
+    get_ci(level = level)
+  
+  if (print) { 
+    print(interval)
+    print(c(interval$upper_ci, interval$lower_ci) %>%
+            describe)
+  }
+  
+  return(interval)
+}
+```
+
+```{r}
+interval60_95 <- samp %>%
+  analyzeConfidenceInterval
+```
+
+### Exercise 4
+Yes, 62/61.7% falls within the confidence interval of 55-78.3%
+
+### Exercise 5
+As each one of us is 95% confident of our range, the average confidence level among the class is 95%, so 95% of the total intervals we generated should correctly encapsulate the true average
+
+### Exercise 6
+```{r}
+emptyTable <- function(cols, rows, colNames = NULL) {
+  tibble <- data.frame(matrix(NA, ncol = cols, nrow = rows)) %>%
+    as_tibble
+  
+  if (!is.null(colNames)) {
+    colnames(tibble) <- colNames
+  }
+  
+  return(tibble)
+}
+```
+
+```{r}
+lowerCILabel <- "lower_ci"
+upperCILabel <- "upper_ci"
+cIColNames <- c(lowerCILabel, upperCILabel)
+
+
+
+analyzeConfidenceIntervals <- function(sample, size = NULL, reps = 1000, yes = TRUE, level = 0.95, loops = 50, print = FALSE) {
+  intervals <- emptyTable(2, loops, cIColNames)
+  
+  for (i in 1:loops) {
+    intervals[i,] <- sample %>%
+      analyzeConfidenceInterval(size, reps, yes, level, print)
+  }
+  
+  print(intervals)
+  print(intervals %>%
+          describe)
+  
+  return(intervals)
+}
+```
+
+```{r}
+intervals50_60 <- us_adults %>%
+  analyzeConfidenceIntervals(numOfElements)
+
+
+
+numOfElements = 1000
+
+
+
+intervals50_1000 <- us_adults %>%
+  analyzeConfidenceIntervals(numOfElements)
+```
+
+```{r}
+analyzeConfidenceIntervalAgainstTrue <- function(intervals, true) {
+  accuracyTable <-intervals %>%
+    apply(1, function(x) true[2,3] > x[1] & true[2,3] < x[2]) %>%
+    as_tibble %>%
+    mtabulate %>%
+    t %>%
+    as_tibble
+
+  colnames(accuracyTable) <- c(nLabel)
+  
+  accuracyTable <- accuracyTable %>%
+    mutate(p = n / sum(n)) %>%
+    mutate(is_within_range = typeLabels) %>%
+    select(is_within_range, n, p)
+
+  print(accuracyTable)
+  return(accuracyTable)
+}
+```
+
+```{r}
+accuracy50_95 <- intervals50_60 %>%
+  analyzeConfidenceIntervalAgainstTrue(us_adultsProportions)
+
+accuracy50_95 <- intervals50_1000 %>%
+  analyzeConfidenceIntervalAgainstTrue(us_adultsProportions)
+```
+
+### Exercise 7
+In order to be less accurate, the interval would have to shrink and be more specific so that the average is outside of it more often
+
+### Exercise 8
+At 95% confidence, the interval is 0.483-0.733 with a range of .25. At 5% confidence, the interval is smaller at 0.583-0.65 with a smaller range of .066
+```{r}
+confidence50 <- 0.50
+
+
+
+interval50_60 <- samp %>%
+  analyzeConfidenceInterval(level = confidence50)
+```
+
+### Exercise 9
+```{r}
+plotConfidenceIntervals <- function(sample, size = NULL, level, true) {
+  intervals <- sample %>% 
+    analyzeConfidenceIntervals(size = size, level = level)
+
+  accuracy <- intervals %>%
+    analyzeConfidenceIntervalAgainstTrue(true)
+  
+  accuracies <- intervals %>%
+      apply(1, function(x) true[2,3] > x[1] & true[2,3] < x[2])
+  
+  ggplot(intervals, aes(lower_ci, upper_ci, colour = accuracies)) + 
+    geom_point()
+  
+  plot_ci(intervals$lower_ci, intervals$upper_ci, as.numeric(true[2,3]))
+  
+  return(accuracy)
+}
+```
+
+```{r}
+numOfElements <- 60
+
+
+
+accuracy50_50 <- us_adults %>%
+  plotConfidenceIntervals(numOfElements, confidence50, us_adultsProportions)
+```
+
+### Exercise 10
+Because the confidence is lower, the range is expected to shrink to exclude the true proportion more often
+```{r}
+confidence10 <- 0.10
+
+
+
+accuracy50_10 <- us_adults %>%
+  plotConfidenceIntervals(numOfElements, confidence10, us_adultsProportions)
+```
+
+### Exercise 11
+The range of intervals decreases as sample size increases
+```{r}
+tinyNum <- 2
+smallNum <- 10
+mediumNum <- 100
+largeNum <- 1000
+massiveNum <- 10000
+
+
+
+interval2_95 <- us_adults %>%
+  analyzeConfidenceInterval(tinyNum)
+
+interval10_95 <- us_adults %>%
+  analyzeConfidenceInterval(smallNum)
+
+interval100_95 <- us_adults %>%
+  analyzeConfidenceInterval(mediumNum)
+
+interval1000_95 <- us_adults %>%
+  analyzeConfidenceInterval(largeNum)
+
+interval10000_95 <- us_adults %>%
+  analyzeConfidenceInterval(massiveNum)
+```
+
+### Exercise 12
+The range of intervals stays fairly consistent as bootstrap samples increase, and because of this, standard error will also stays fairly consistent
+```{r}
+interval2_95 <- us_adults %>%
+  analyzeConfidenceInterval(numOfElements, reps = tinyNum)
+
+interval10_95 <- us_adults %>%
+  analyzeConfidenceInterval(numOfElements, reps = smallNum)
+
+interval100_95 <- us_adults %>%
+  analyzeConfidenceInterval(numOfElements, reps = mediumNum)
+
+interval1000_95 <- us_adults %>%
+  analyzeConfidenceInterval(numOfElements, reps = largeNum)
+
+interval10000_95 <- us_adults %>%
+  analyzeConfidenceInterval(numOfElements, reps = massiveNum)
+```
