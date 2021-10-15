@@ -24,7 +24,6 @@ set.seed(37)
 nLabel <- "n"
 yesLabel <- "Yes"
 noLabel <- "No"
-typeLabels <- c(noLabel, yesLabel)
   
 us_adults <- tibble(
   climate_change_affects = c(rep(yesLabel, 62000), rep(noLabel, 38000))
@@ -50,15 +49,21 @@ analyzeSamplingProportion <- function(sample, size = NULL) {
   sizedSample <- sizeSample(sample, size)
   
   sizedSampleTable <- sizedSample %>%
-    mtabulate %>%
+    mtabulate
+  
+  colNames <- sizedSampleTable %>%
+    colnames
+  
+  sizedSampleTable <- sizedSampleTable %>%
     t %>%
     as_tibble
 
+  
   colnames(sizedSampleTable) <- c(nLabel)
   
   sizedSampleTable <- sizedSampleTable %>%
     mutate(p = n / sum(n)) %>%
-    mutate(climate_change_affects = typeLabels) %>%
+    mutate(climate_change_affects = colNames) %>%
     select(climate_change_affects, n, p)
     
   print(sizedSampleTable)
@@ -100,11 +105,7 @@ With such a small sample size, the proportions will be very prone to changing si
 analyzeConfidenceInterval <- function(sample, size = NULL, reps = 1000, yes = TRUE, level = 0.95, print = TRUE) {
   sizedSample <- sizeSample(sample, size)
   
-  typeLabel <- if (yes) { 
-      yesLabel
-    } else {
-      noLabel
-    }
+  typeLabel <- ifelse (yes, yesLabel, noLabel)
   
   interval <- sizedSample %>%
     specify(response = climate_change_affects, success = typeLabel) %>%
@@ -189,7 +190,12 @@ analyzeConfidenceIntervalAgainstTrue <- function(intervals, true) {
   accuracyTable <-intervals %>%
     apply(1, function(x) true[2,3] > x[1] & true[2,3] < x[2]) %>%
     as_tibble %>%
-    mtabulate %>%
+    mtabulate
+    
+  colNames <- accuracyTable %>%
+    colnames
+    
+  accuracyTable <- accuracyTable %>%
     t %>%
     as_tibble
 
@@ -197,7 +203,7 @@ analyzeConfidenceIntervalAgainstTrue <- function(intervals, true) {
   
   accuracyTable <- accuracyTable %>%
     mutate(p = n / sum(n)) %>%
-    mutate(is_within_range = typeLabels) %>%
+    mutate(is_within_range = colNames) %>%
     select(is_within_range, n, p)
 
   print(accuracyTable)
